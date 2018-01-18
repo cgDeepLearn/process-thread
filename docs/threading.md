@@ -146,5 +146,209 @@ if __name__ == '__main__':
 Queue类所提供的的机制，可以彻底解决上述问题，它具备阻塞式的队列操作、能够制定缓冲区尺寸，而且还支持join方法，这使得开发者可以构建出健壮的管线。
 
 * 示例：生产者消费者模型
+```python
+import time
+import random
+import threading
+from queue import Queue  # 队列模块
+from itertools import chain
 
-构建一个有三个阶段的pipeline：图片的下载(download)、调整尺寸(resize)、再上传(upload)
+q = Queue()
+sentinel = object()  # 结束标记
+
+
+def Producer(nums):
+    """生产者函数
+    nums:product起始编号元组,例如(1,10)"""
+    thread_name = threading.currentThread().getName()
+    for item in range(*nums):
+        q.put(item)
+        print('[+] %s 生产 item%s' % (thread_name,item))
+        time.sleep(random.randrange(2))  # 控制生产速度
+
+
+def Consumer():
+    """消费者函数"""
+    thread_name = threading.currentThread().getName()
+    while True:
+        data = q.get()
+
+        if data is sentinel:
+            print('[x] %s 退出' % thread_name)
+            break
+        print('[-] %s 消费 item%s' % (thread_name, data))
+
+        time.sleep(1)
+
+
+def run():
+    """主函数"""
+    pnum = 2
+    cnum = 3
+
+    # 生产者线程，每个线程生产10个，1号线程生产1，10，2号生产11-20......
+    pthreads = [
+        threading.Thread(target=Producer,
+                         args=((i * 10 + 1, (i + 1) * 10 + 1),),
+                         name="生产者%d号" % (i + 1))
+        for i in range(pnum)]
+    # 消费者线程
+    cthreads = [
+        threading.Thread(target=Consumer, name="消费者%d号" % (i + 1))
+        for i in range(cnum)]
+
+    for thread in chain(pthreads, cthreads):
+        thread.start()
+
+    for pt in pthreads:
+        pt.join()  # 生产线程阻塞
+    for _ in range(cnum):
+        q.put(sentinel)  # put结束标记
+    for ct in cthreads:
+        ct.join()
+
+    print("all done")
+
+
+if __name__ == '__main__':
+    run()
+```
+
+output:
+
+```python
+...
+...
+[+] 生产者1号 生产 item8
+[-] 消费者2号 消费 item8
+[+] 生产者1号 生产 item9
+[-] 消费者3号 消费 item9
+[+] 生产者1号 生产 item10
+[-] 消费者2号 消费 item10
+[x] 消费者1号 退出
+[x] 消费者3号 退出
+[x] 消费者2号 退出
+all done
+```
+
+
+* 管线
+
+我们构建一个有三个阶段的管线：下载图片-->>调整大小-->>重新上传
+
+```python
+# -*- coding: utf-8 -*-
+"""用threading模块和Queue实现管线"""
+import time
+import threading
+from queue import Queue
+
+
+class ClosableQueue(Queue):
+    """带有终止信号的Queue
+    close时put终止信号"""
+    SENTINEL = object()  # 终止信号
+
+    def close(self):
+        self.put(self.SENTINEL)
+
+    def __iter__(self):
+        while True:
+            item = self.get()
+            try:
+                if item is self.SENTINEL:
+                    return # 致使线程退出
+                yield item
+            finally:
+                self.task_done()
+
+
+class StopableWorker(threading.Thread):
+    """queue遇到终止信号的线程退出"""
+    def __init__(self, func, in_queue, out_queue):
+        super().__init__()
+        self.func = func
+        self.in_queue = in_queue
+        self.out_queue = out_queue
+
+    def run(self):
+        for item in self.in_queue:
+            result = self.func(item)
+            if result is not None:
+                self.out_queue.put(result)
+
+
+def download(item):
+    """下载"""
+    print('download item ', item)
+    time.sleep(0.1)
+    return item 
+
+def resize(item):
+    """调整"""
+
+    print('resize item ', item)
+    time.sleep(0.1)
+    return item
+
+def upload(item):
+    """上传"""
+    print('upload item ', item)
+    return item 
+
+
+def main():
+    """主程序"""
+    # 各阶段队列
+    download_queue = ClosableQueue()
+    resize_queue = ClosableQueue()
+    upload_queue = ClosableQueue()
+    out_queue = Queue()
+    # 线程
+    threads = [
+        StopableWorker(download, download_queue, resize_queue),
+        StopableWorker(resize, resize_queue, upload_queue),
+        StopableWorker(upload, upload_queue, out_queue)
+    ]
+
+    for thread in threads:
+        thread.start()
+
+    for i in range(1, 101):
+        download_queue.put(i)
+
+    download_queue.close()
+    download_queue.join()
+
+    resize_queue.close()
+    resize_queue.join()
+
+    upload_queue.close()
+    upload_queue.join()
+
+    print(out_queue.qsize(), 'pictures finished')
+    # while not out_queue.empty():
+    #     print(out_queue.get())
+
+if __name__ == '__main__':
+    main()
+```
+
+output:
+
+```python
+...
+...
+upload item  96
+resize item  97
+upload item  97
+resize item  98
+download item  99
+download item  100
+resize item  99
+upload item  98
+upload item  99
+resize item  100
+upload item  100
+100 pictures finished
+```
