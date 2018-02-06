@@ -5,7 +5,9 @@ subprocess模块是python从2.4版本开始引入的模块。主要用来取代 
 ## 常用方法
 
 ### subprocess.call()
+
 执行命令，并返回执行状态，其中shell参数为False时，命令需要通过列表的方式传入，当shell为True时，可直接传入命令
+
 ```python
 >>> import subprocess
 >>> child = subprocess.call(['df', '-h'], shell=False)
@@ -28,8 +30,11 @@ tmpfs           5.0M  4.0K  5.0M   1% /run/lock
 tmpfs           495M     0  495M   0% /sys/fs/cgroup
 tmpfs            99M     0   99M   0% /run/user/1000
 ```
+
 ### subprocess.check_call()
+
 用法与subprocess.call()类似，区别是，当返回值不为0时，直接抛出异常
+
 ```python
 >>> child3 = subprocess.check_call('df -h', shell=True)
 Filesystem      Size  Used Avail Use% Mounted on
@@ -50,15 +55,21 @@ Traceback (most recent call last):
     raise CalledProcessError(retcode, cmd)
 subprocess.CalledProcessError: Command 'df-h' returned non-zero exit status 127.
 ```
+
 ### subprocess.check_output()
+
 用法与上面两个方法类似，区别是，如果当返回值为0时，不直接输出结果，如果返回值不为0，直接抛出异常。需要说明的是，该方法在python3.x中才有。
+
 ```python
 >>> child5 = subprocess.check_output('df -h', shell=True)
 >>> child5
 b'Filesystem      Size  Used Avail Use% Mounted on\nudev            475M     0  475M   0% /dev\ntmpfs            99M  2.9M   97M   3% /run\n/dev/vda1        40G  9.5G   28G  26% /\ntmpfs           495M  4.0K  495M   1% /dev/shm\ntmpfs           5.0M  4.0K  5.0M   1% /run/lock\ntmpfs           495M     0  495M   0% /sys/fs/cgroup\ntmpfs            99M     0   99M   0% /run/user/1000\n'
 ```
+
 ### subprocess.Popen()
+
 在一些复杂场景中，我们需要将一个进程的执行输出作为另一个进程的输入。在另一些场景中，我们需要先进入到某个输入环境，然后再执行一系列的指令等。这个时候我们就需要使用到suprocess的Popen()方法。该方法有以下参数：
+
 * args：shell命令，可以是字符串，或者序列类型，如list,tuple。
 * bufsize：缓冲区大小，可不用关心
 * stdin,stdout,stderr：分别表示程序的标准输入，标准输出及标准错误
@@ -68,6 +79,7 @@ b'Filesystem      Size  Used Avail Use% Mounted on\nudev            475M     0  
 * universal_newlines：不同系统的的换行符不同，当该参数设定为true时，则表示使用\n作为换行符
 
 示例1：在~/test下创建一个suprocesstest的目录， 以及删除：
+
 ```python
 >>> child6 = subprocess.Popen('mkdir subprocesstest',shell=True,cwd='/home/cg/test')
 # 查看目录，已经创建该文件夹
@@ -76,6 +88,7 @@ b'Filesystem      Size  Used Avail Use% Mounted on\nudev            475M     0  
 ```
 
 示例2: 使用python执行几个命令
+
 ```python
 import subprocess
 
@@ -94,12 +107,16 @@ proc.stderr.close()
 print(cmd_out)
 print(cmd_error)
 ```
+
 output:
+
 ```python
 b'1\n2\n3\n'
 b''
 ```
+
 或者使用communicate()方法：
+
 ```python
 import subprocess
 
@@ -113,11 +130,15 @@ out_err_list = proc.communicate()
 print(out_err_list)
 
 ```
+
 output:
+
 ```python
 (b'1\n2\n3\n', b'') #(out,err)元组
 ```
+
 示例3: 将一个子进程的输出，作为另一个子进程的输入
+
 ```python
 # 类似于shell的cat /etc/passwd | grep 0:0
 import subprocess
@@ -127,6 +148,7 @@ out = child2.communicate()
 ```
 
 其他方法：
+
 ```python
 import subprocess
 child = subprocess.Popen('sleep 60',shell=True,stdout=subprocess.PIPE)
