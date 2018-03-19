@@ -171,4 +171,74 @@ if __name__ == '__main__':
     loop.close()
 ```
 
+运行结果如下:
+
+```
+...
+Fast one think 0.0393240884371622 secs to get 21
+Slow one think 0.12157996704037113 secs to get 5
+Fast one think 0.08259000223641344 secs to get 34
+Slow one think 0.15816909012449587 secs to get 8
+Fast one think 0.1967429201039252 secs to get 55
+Slow one think 0.25365548691367573 secs to get 13
+Slow one think 0.3235222687782598 secs to get 21
+Slow one think 0.35160632142878434 secs to get 34
+Slow one think 0.34477299780059134 secs to get 55
+All fib finished.
+```
+
 ## async/await
+
+清楚了`asyncio.coroutine`和`yield from`之后，在Python3.5中引入的`async`和`await`就不难理解了：
+可以将他们理解成`asyncio.coroutine/yield from`的完美替身。当然，从Python设计的角度来说，`async/await`让协程表面上独立于生成器而存在，将细节都隐藏于`asyncio`模块之下，语法更清晰明了。
+
+async/await 示例:
+
+```python
+# 使用 async/await 关键字
+
+async def fast_fib(n):
+    """smart one"""
+    index = 0
+    a, b = 0, 1
+    while index < n:
+        sleep_secs = random.uniform(0, 0.2)
+        await asyncio.sleep(sleep_secs)
+        print('Fast one think {} secs to get {}'.format(sleep_secs, b))
+        a, b = b, a + b
+        index += 1
+
+
+async def slow_fib(n):
+    """slow one"""
+    index = 0
+    a, b = 0, 1
+    while index < n:
+        sleep_secs = random.uniform(0, random_sec)
+        await asyncio.sleep(sleep_secs)
+        print('Slow one think {} secs to get {}'.format(sleep_secs, b))
+        a, b = b, a + b
+        index += 1
+
+if __name__ == '__main__':
+    loop = asyncio.get_event_loop()  # 获取时间循环的引用
+    tasks = [
+        asyncio.ensure_future(fast_fib(10)),
+        asyncio.ensure_future(slow_fib(10))  
+        # ensure_future 和create_task都可以，asyncio.async过时了
+        # loop.create_task(fast_fib(10)),
+        # loop.create_task(slow_fib(10)) 
+    ]
+    loop.run_until_complete(asyncio.wait(tasks)) 
+    print('All fib finished.')
+    loop.close()
+```
+
+可以发现相比上面`yield from`的版本只改变了以下两点:
+
+* 函数定义前面加了`async`关键字，更加清晰表明这是一个协程
+* `yield from` 换成了`await`关键字
+
+## 总结
+
+示例程序中都是以sleep为异步I/O的代表，在实际项目中，可以使用协程异步的读写网络、读写文件、渲染界面等，而在等待协程完成的同时，CPU还可以进行其他的计算。协程的作用正在于此。
